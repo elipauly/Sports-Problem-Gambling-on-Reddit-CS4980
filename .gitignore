@@ -1,0 +1,9 @@
+node_modules/
+venv/
+bin/
+obj/
+.DS_Store
+Thumbs.db
+.env
+*.local
+.vscode/
