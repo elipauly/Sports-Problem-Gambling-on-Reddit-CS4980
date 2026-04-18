@@ -1,11 +1,19 @@
-#from https://www.geeksforgeeks.org/machine-learning/toxic-comment-classification-using-bert/
+# This is our official classifier model. It uses the BERT architecture to classify comments as either "problem gambling" or "clean". The model is trained on a dataset of Reddit comments that have been labeled as either "problem gambling" or "clean". The model is then used to predict the labels of new comments.
+
+# Before running this, follow BERT_Visualization.py to make sure training data is (reasonably) balanced and happy.
+# Also install the necessary libraries (transformers, torch, sklearn, etc.) if you haven't already (listed in requirements.txt)
+
+# Structure:
+# 1. Imports / Data loading
+# 2. Data preprocessing & tokenization
+# 3. Model Training
+# 4. Model Evaluation
+# 5. Prediction
+
+##############
+# 1. Imports / Data loading
 import numpy as np
 import pandas as pd
-
-#data visualisation libraries
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pylab import rcParams
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -14,25 +22,24 @@ from torch.optim import AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 
-#to avoid warnings
 import warnings
 warnings.filterwarnings('ignore')
 
-data = pd.read_csv("/Users/pauly/VSCode/26spring/Sports-Problem-Gambling-on-Reddit-CS4980/bert_test.csv")
-print(data.head())
+##############
+# LOAD THE CORRECT CSV FILE
+data = pd.read_csv("bert_test.csv")
+print("data.head(): ", data.head())
 
-# Visualizing the class distribution of the 'label' column
-column_labels = data.columns[1:2]
-label_counts = data[column_labels].sum()
+##############
+# 2. Data preprocessing & tokenization
 
-
-# Create subsets based on pg and clean comments
-train_problem = data[data[column_labels].sum(axis=1) > 0]
-train_clean = data[data[column_labels].sum(axis=1) == 0]
+label_column = data.columns[1]
+labels = data[label_column].values.astype(int)
+texts = data['text'].values
 
 #splot into training, testing, and validation sets
 train_texts, test_texts, train_labels, test_labels = train_test_split(
-    data['text'], data[column_labels].values, test_size=0.2, random_state=42)
+    texts, labels, test_size=0.2, random_state=42)
 
 #validation set
 test_texts, val_texts, test_labels, val_labels = train_test_split(
@@ -42,17 +49,18 @@ test_texts, val_texts, test_labels, val_labels = train_test_split(
 def tokenize_and_encode(tokenizer, text, labels, max_length=512):
     encoded = tokenizer(
         list(text),
-        padding=True,              # ensures all sequences same length
-        truncation=True,           # cuts off long sequences
+        padding="max_length",            
+        truncation=True,           
         max_length=max_length,
         return_tensors='pt'
     )
 
     input_ids = encoded['input_ids']
     attention_masks = encoded['attention_mask']
-    labels = torch.tensor(labels)
+    labels = torch.tensor(labels).long().view(-1)
 
     return input_ids, attention_masks, labels
+
 #initialize the BERT tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
 
@@ -96,8 +104,12 @@ print("Batch labels shape: ", Batch[2].shape)
 #adamw optimizer
 optimizer = AdamW(model.parameters(), lr=2e-5)
 
-#model training
-def train_model(model, train_loader, optimizer, device, num_epochs):
+
+##############
+# 3. Model Training / Building
+
+#training
+def train_model(model, train_loader, val_loader, optimizer, device, num_epochs):
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
@@ -124,9 +136,12 @@ def train_model(model, train_loader, optimizer, device, num_epochs):
                 val_loss += loss.item()
             print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader):.4f}, Validation Loss: {val_loss / len(val_loader):.4f}')
 
-train_model(model, train_loader, optimizer, device, num_epochs=10)
+train_model(model, train_loader, val_loader, optimizer, device, num_epochs=10)
 
-#model evaluation
+
+##############
+# 4. Model Evaluation
+
 def evaluate_model(model, test_loader, device):
     model.eval()
     true_labels = []
@@ -147,8 +162,8 @@ def evaluate_model(model, test_loader, device):
     predicted_labels = np.concatenate(predicted_labels, axis=0)
 
     accuracy = accuracy_score(true_labels, predicted_labels)
-    precision = precision_score(true_labels, predicted_labels)
-    recall = recall_score(true_labels, predicted_labels)
+    precision = precision_score(true_labels, predicted_labels, zero_division=0)
+    recall = recall_score(true_labels, predicted_labels, zero_division=0)
 
     print(f'Accuracy: {accuracy:.4f}')
     print(f'Precision: {precision:.4f}')
@@ -156,39 +171,18 @@ def evaluate_model(model, test_loader, device):
 
 evaluate_model(model, test_loader, device)
 
-output_dir = "Saved_Test_BERT_Model"
+##############
+# SAVING THE MODEL, TOKENIZER, AND LOADING IT BACK IN FOR PREDICTION
+output_dir = "Saved_BERT_Model"
 model.save_pretrained(output_dir)
 tokenizer.save_pretrained(output_dir)
 
-model_name = "Saved_Test_BERT_Model"
+model_name = "Saved_BERT_Model"
 Bert_Tokenizer = BertTokenizer.from_pretrained(model_name)
 Bert_Model = BertForSequenceClassification.from_pretrained(model_name).to(device)
 
-def predict_user_input(input_text, model=Bert_Model, tokenizer=Bert_Tokenizer, device=device):
-    user_encodings = tokenizer(
-        [input_text],
-        padding=True,
-        truncation=True,
-        max_length=512,
-        return_tensors='pt'
-    )
-
-    input_ids = user_encodings['input_ids'].to(device)
-    attention_mask = user_encodings['attention_mask'].to(device)
-
-    model.eval()
-    with torch.no_grad():
-        outputs = model(input_ids, attention_mask=attention_mask)
-        probs = torch.softmax(outputs.logits, dim=1).squeeze().cpu().numpy()
-        pred = np.argmax(probs)
-
-    labels_list = ['Clean', 'Problem Gambling']
-
-    return {
-        "predicted_label": labels_list[pred],
-        "probabilities": dict(zip(labels_list, probs))
-    }
-
+##############
+# 5. Prediction
 
 #chatgpt gave me this, predict in batches for large dataset
 def predict_batch(texts, model, tokenizer, device, batch_size=64):
@@ -202,7 +196,7 @@ def predict_batch(texts, model, tokenizer, device, batch_size=64):
 
         encodings = tokenizer(
             batch_texts,
-            padding=True,
+            padding="max_length",
             truncation=True,
             max_length=512,
             return_tensors='pt'
@@ -223,13 +217,13 @@ def predict_batch(texts, model, tokenizer, device, batch_size=64):
     all_probs = np.concatenate(all_probs, axis=0)
     all_preds = np.concatenate(all_preds, axis=0)
 
-    labels_list = ['Clean', 'Problem Gambling']
+    label_map = {0: "Clean", 1: "Problem Gambling"}
 
     results = []
     for prob, pred in zip(all_probs, all_preds):
         results.append({
-            "predicted_label": labels_list[pred],
-            "probabilities": dict(zip(labels_list, prob))
+            "predicted_label": label_map[pred],
+            "probabilities": dict(zip(list(label_map.values()), prob))
         })
 
     return results

@@ -7,3 +7,7 @@ Thumbs.db
 .env
 *.local
 .vscode/
+/Saved_Test_BERT_Models/
+/Saved_BERT_Model/
+Saved_Test_BERT_Models/
+Saved_BERT_Model/
