@@ -14,3 +14,5 @@ Another great question, you each have lovely datasets to manually label, **trist
 ## short guide as im not certain how familiar we all are with classifier models ##
 Labelled data: the data which You, my friend, will spend a lot of time manually adding a 1 or 0  
 Training set: built from labelled data, but undersampling the majority class. Having a *somewhat* balanced training set is very necessary for our data.  
+0: Clean (negative class)  
+1: Problem Gambling (positive class)

@@ -14,20 +14,22 @@
 # 1. Imports / Data loading
 import numpy as np
 import pandas as pd
+import random
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import BertTokenizer, BertForSequenceClassification
 from torch.optim import AdamW
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, average_precision_score
 
 import warnings
 warnings.filterwarnings('ignore')
 
 ##############
-# LOAD THE CORRECT CSV FILE
+# LOAD THE CORRECT CSV FILE 
 data = pd.read_csv("bert_test.csv")
+predict_df = pd.read_csv("bert_predict.csv")
 print("data.head(): ", data.head())
 
 ##############
@@ -37,13 +39,29 @@ label_column = data.columns[1]
 labels = data[label_column].values.astype(int)
 texts = data['text'].values
 
+def set_seed(seed=67):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+set_seed(67)
+
 #splot into training, testing, and validation sets
-train_texts, test_texts, train_labels, test_labels = train_test_split(
-    texts, labels, test_size=0.2, random_state=42)
+train_texts, temp_texts, train_labels, temp_labels = train_test_split(
+    texts, labels,
+    test_size=0.3,
+    stratify=labels,
+    random_state=67
+)
 
 #validation set
-test_texts, val_texts, test_labels, val_labels = train_test_split(
-    test_texts, test_labels, test_size=0.5, random_state=42)
+val_texts, test_texts, val_labels, test_labels = train_test_split(
+    temp_texts, temp_labels,
+    test_size=0.5,
+    stratify=temp_labels,
+    random_state=67
+)
 
 #tokenization
 def tokenize_and_encode(tokenizer, text, labels, max_length=512):
@@ -121,6 +139,7 @@ def train_model(model, train_loader, val_loader, optimizer, device, num_epochs):
             loss = outputs.loss
             total_loss += loss.item()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
         model.eval()
         val_loss = 0
@@ -134,7 +153,8 @@ def train_model(model, train_loader, val_loader, optimizer, device, num_epochs):
                     input_ids, attention_mask=attention_mask, labels=labels)
                 loss = outputs.loss
                 val_loss += loss.item()
-            print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader):.4f}, Validation Loss: {val_loss / len(val_loader):.4f}')
+            print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader):.4f}, Validation Loss: {val_loss / max(1, len(val_loader)):.4f}')
+        torch.cuda.empty_cache()
 
 train_model(model, train_loader, val_loader, optimizer, device, num_epochs=10)
 
@@ -147,6 +167,9 @@ def evaluate_model(model, test_loader, device):
     true_labels = []
     predicted_labels = []
 
+    all_labels = []
+    all_probs = []
+
     with torch.no_grad():
         for batch in test_loader:
             input_ids, attention_mask, labels = [t.to(device) for t in batch]
@@ -158,6 +181,9 @@ def evaluate_model(model, test_loader, device):
             predicted_labels.append(preds.cpu().numpy())
             true_labels.append(labels.cpu().numpy())
 
+            all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+
     true_labels = np.concatenate(true_labels, axis=0)
     predicted_labels = np.concatenate(predicted_labels, axis=0)
 
@@ -165,9 +191,14 @@ def evaluate_model(model, test_loader, device):
     precision = precision_score(true_labels, predicted_labels, zero_division=0)
     recall = recall_score(true_labels, predicted_labels, zero_division=0)
 
+    roc_auc = roc_auc_score(all_labels, all_probs)
+    pr_auc = average_precision_score(all_labels, all_probs)
+
     print(f'Accuracy: {accuracy:.4f}')
     print(f'Precision: {precision:.4f}')
     print(f'Recall: {recall:.4f}')
+    print(f"ROC-AUC: {roc_auc:.4f}")
+    print(f"PR-AUC: {pr_auc:.4f}")
 
 evaluate_model(model, test_loader, device)
 
@@ -181,6 +212,8 @@ model_name = "Saved_BERT_Model"
 Bert_Tokenizer = BertTokenizer.from_pretrained(model_name)
 Bert_Model = BertForSequenceClassification.from_pretrained(model_name).to(device)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
 ##############
 # 5. Prediction
 
@@ -223,18 +256,17 @@ def predict_batch(texts, model, tokenizer, device, batch_size=64):
     for prob, pred in zip(all_probs, all_preds):
         results.append({
             "predicted_label": label_map[pred],
-            "probabilities": dict(zip(list(label_map.values()), prob))
+            "probabilities": dict(zip(label_map.values(), prob))
         })
 
     return results
 
-texts = [
-    "I can't stop betting on sports, even though I know it's ruining my life.",
-    "Great game last night, what a comeback!",
-    "Lost another paycheck gambling, I feel sick."
-]
+predict_texts = predict_df['text'].astype(str).tolist()
 
-results = predict_batch(texts, model, tokenizer, device)
+results = predict_batch(predict_texts, model, tokenizer, device)
 
-for r in results:
-    print(r)
+predict_df['predicted_label'] = [r['predicted_label'] for r in results]
+predict_df['prob_clean'] = [r['probabilities']['Clean'] for r in results]
+predict_df['prob_pg'] = [r['probabilities']['Problem Gambling'] for r in results]
+
+predict_df.to_csv("bert_sportsbetting_predictions.csv", index=False)
