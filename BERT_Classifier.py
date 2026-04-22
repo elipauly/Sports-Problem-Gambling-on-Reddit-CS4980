@@ -28,8 +28,8 @@ warnings.filterwarnings('ignore')
 
 ##############
 # LOAD THE CORRECT CSV FILE 
-data = pd.read_csv("bert_test.csv")
-predict_df = pd.read_csv("bert_predict.csv")
+data = pd.read_csv("BERT_Training_Labelled_Full.csv")
+predict_df = pd.read_csv("bert_sportsbetting.csv")
 print("data.head(): ", data.head())
 
 ##############
@@ -156,7 +156,7 @@ def train_model(model, train_loader, val_loader, optimizer, device, num_epochs):
             print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader):.4f}, Validation Loss: {val_loss / max(1, len(val_loader)):.4f}')
         torch.cuda.empty_cache()
 
-train_model(model, train_loader, val_loader, optimizer, device, num_epochs=10)
+train_model(model, train_loader, val_loader, optimizer, device, num_epochs=3)
 
 
 ##############

@@ -10,8 +10,16 @@ pauly2 = pd.read_csv('pauly_pt2.csv')
 dfs = [nathan, tristan, pauly, nathan2, tristan2, pauly2]
 
 combined_samples = pd.concat(dfs, ignore_index=True)
+#combined_samples['text'] = combined_samples['text'].str.replace('"', '', regex=False)
+
+#print(combined_samples['label'].isna().sum())
+#print(tristan[tristan.isnull().any(axis=1)])
+
+
+combined_samples['label'] = combined_samples['label'].astype(int)
 combined_samples.to_csv("BERT_Training_Labelled_Full.csv", index=False)
 
-print(len(combined_samples))
-print(combined_samples.head())
-print(combined_samples['label'].value_counts())
+
+#print(len(combined_samples))
+#print(combined_samples.head())
+#print(combined_samples['label'].value_counts())
