@@ -28,7 +28,7 @@ combined_samples.to_csv("BERT_Training_Labelled_Full.csv", index=False)
 #print(combined_samples['label'].value_counts().min())
 
 #count of minority = 222, so we will sample 888 from the majority to have a 20-80 split balance
-undersampled_majority = combined_samples[combined_samples['label'] == 0].sample(n=888, random_state=42)
+undersampled_majority = combined_samples[combined_samples['label'] == 0].sample(n=888, random_state=67)
 
 # Combine minority class with downsampled majority class
 df_sampled = pd.concat([undersampled_majority, combined_samples[combined_samples['label'] == 1]])

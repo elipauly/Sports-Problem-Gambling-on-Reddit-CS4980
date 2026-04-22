@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # LABELLED TRAINING DATA.csv GOES HERE !
-data = pd.read_csv("LABELLED.csv")
+data = pd.read_csv("BERT_Training_Labelled_Sampled.csv")
 print(data.head())
 
 # Visualizing the class distribution of the 'label' column

@@ -28,7 +28,7 @@ warnings.filterwarnings('ignore')
 
 ##############
 # LOAD THE CORRECT CSV FILE 
-data = pd.read_csv("BERT_Training_Labelled_Full.csv")
+data = pd.read_csv("BERT_Training_Labelled_Sampled.csv")
 predict_df = pd.read_csv("bert_sportsbetting.csv")
 print("data.head(): ", data.head())
 
@@ -191,8 +191,11 @@ def evaluate_model(model, test_loader, device):
     precision = precision_score(true_labels, predicted_labels, zero_division=0)
     recall = recall_score(true_labels, predicted_labels, zero_division=0)
 
-    roc_auc = roc_auc_score(all_labels, all_probs)
-    pr_auc = average_precision_score(all_labels, all_probs)
+    all_probs = np.array(all_probs)
+    pos_probs = all_probs[:, 1]
+
+    roc_auc = roc_auc_score(all_labels, pos_probs)
+    pr_auc = average_precision_score(all_labels, pos_probs)
 
     print(f'Accuracy: {accuracy:.4f}')
     print(f'Precision: {precision:.4f}')
