@@ -18,7 +18,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 import warnings
 warnings.filterwarnings('ignore')
 
-data = pd.read_csv("/Users/pauly/VSCode/26spring/Sports-Problem-Gambling-on-Reddit-CS4980/bert_test.csv")
+data = pd.read_csv("BERT_Training_Labelled_Full.csv")
 print(data.head())
 
 # Visualizing the class distribution of the 'label' column
