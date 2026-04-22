@@ -30,6 +30,7 @@ warnings.filterwarnings('ignore')
 # LOAD THE CORRECT CSV FILE 
 data = pd.read_csv("BERT_Training_Labelled_Sampled.csv")
 predict_df = pd.read_csv("bert_sportsbetting.csv")
+predict_df2 = pd.read_csv("bert_sportsbook.csv")
 print("data.head(): ", data.head())
 
 ##############
@@ -156,7 +157,7 @@ def train_model(model, train_loader, val_loader, optimizer, device, num_epochs):
             print(f'Epoch {epoch + 1}, Training Loss: {total_loss / len(train_loader):.4f}, Validation Loss: {val_loss / max(1, len(val_loader)):.4f}')
         torch.cuda.empty_cache()
 
-train_model(model, train_loader, val_loader, optimizer, device, num_epochs=3)
+train_model(model, train_loader, val_loader, optimizer, device, num_epochs=8)
 
 
 ##############
@@ -207,11 +208,11 @@ evaluate_model(model, test_loader, device)
 
 ##############
 # SAVING THE MODEL, TOKENIZER, AND LOADING IT BACK IN FOR PREDICTION
-output_dir = "Saved_BERT_Model"
+output_dir = "Saved_BERT_Model_8Epochs"
 model.save_pretrained(output_dir)
 tokenizer.save_pretrained(output_dir)
 
-model_name = "Saved_BERT_Model"
+model_name = "Saved_BERT_Model_8Epochs"
 Bert_Tokenizer = BertTokenizer.from_pretrained(model_name)
 Bert_Model = BertForSequenceClassification.from_pretrained(model_name).to(device)
 
@@ -272,4 +273,16 @@ predict_df['predicted_label'] = [r['predicted_label'] for r in results]
 predict_df['prob_clean'] = [r['probabilities']['Clean'] for r in results]
 predict_df['prob_pg'] = [r['probabilities']['Problem Gambling'] for r in results]
 
-predict_df.to_csv("bert_sportsbetting_predictions.csv", index=False)
+predict_df.to_csv("bert_sportsbetting_predictions_8epochs.csv", index=False)
+
+
+####
+predict_texts = predict_df2['text'].astype(str).tolist()
+
+results = predict_batch(predict_texts, model, tokenizer, device)
+
+predict_df2['predicted_label'] = [r['predicted_label'] for r in results]
+predict_df2['prob_clean'] = [r['probabilities']['Clean'] for r in results]
+predict_df2['prob_pg'] = [r['probabilities']['Problem Gambling'] for r in results]
+
+predict_df2.to_csv("bert_sportsbook_predictions_8epochs.csv", index=False)
