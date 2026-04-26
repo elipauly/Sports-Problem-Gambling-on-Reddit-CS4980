@@ -3,13 +3,13 @@ from os import read
 import re
 import pandas as pd
 
-PREDICTION_FILE = ("bert_sportsbetting_predictions_8epochs.csv")
-RAW_JSON_FILE = "original_data/sportsbetting_14days.json"
-OUT_FILE = "sportsbetting_nested_comments.json"
+# PREDICTION_FILE = "bert_sportsbetting_predictions_8epochs.csv"
+# RAW_JSON_FILE = "original_data/sportsbetting_14days.json"
+# OUT_FILE = "sportsbetting_nested_comments.json"
 
-# PREDICTION_FILE = ("bert_sportsbook_predictions_8epochs.csv")
-# RAW_JSON_FILE = "original_data/sportsbook_15days.json"
-# OUT_FILE = "sportsbook_nested_comments.json"
+PREDICTION_FILE = "bert_sportsbook_predictions_8epochs.csv"
+RAW_JSON_FILE = "original_data/sportsbook_15days.json"
+OUT_FILE = "sportsbook_nested_comments.json"
 
 #TEXT CLEANING#
 def clean_text(text):
